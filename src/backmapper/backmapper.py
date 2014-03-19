@@ -36,7 +36,11 @@ def make_backmap(HMMSeqRes,chain_res_list,name=None):
 
 	res_iter = chain_res_list.__iter__()
 	
+	#RETURN VALUE
+	finalBackMap = Backmap(seqrec=HMMSeqRes,name=name)
+	
 	#skip sufficient residues in chain_res_list to get to the proper starting position of the HMM match
+	#This is needed (instead of using slicing) because there are sometimes (are there?) residues in the PDB that are not in the seqres.
 	numToPop = HMMSeqRes.annotations['start'] - 1
 	while numToPop > 0:
 		first_pair = res_iter.next()
@@ -48,16 +52,22 @@ def make_backmap(HMMSeqRes,chain_res_list,name=None):
 	
 	hmmPos = count()
 	# HMMCol, hitCharacter, Residue
-	finalBackMap = Backmap(seqrec=HMMSeqRes,name=name)#list()
 	for hitChar in HMMSeqRes:
 		hmmCol = None
-		if not hitChar.islower():#A gap or a match, not an insert. 
-			hmmCol = hmmPos.next()
-		
 		oneResidue = None
-		if hitChar != '-':#A non-gap (hit or insert), if it were a gap in the HMM, then it corresponds to no residue, skip.
+		
+		#A gap or a match, not an insert.
+		#hmmCol remains None for 
+		if not hitChar.islower():
+			hmmCol = hmmPos.next()
+		else:#It's an insert and does not correspond to any HMM column.
+			hmmCol = None #Redundant but added for readability. 
+		
+		#A non-gap (hit or insert), meaning a residue in the PDB file. Those get added to backmaps.
+		#if it was a gap in the HMM, then it corresponds to no residue, (But we still output the HMM column ID, handled above.)
+		if hitChar != '-':
 			seqResChar, oneResidue = res_iter.next()
-			assert seqResChar.upper() == hitChar.upper(), "mismatch!"
+			assert seqResChar.upper() == hitChar.upper(), "mismatch between seqres and PBD structure"
 		
 		finalBackMap.append((hmmCol,hitChar,oneResidue))
 
@@ -158,7 +168,7 @@ def main():
 	structID = args[1].lower()
 	pfamDBfile = args[0]
 
-	 #placeholder, later the user will be given the option to specify a bundledir
+	#placeholder, later the user will be given the option to specify a bundledir
 	
 	#TODO update this to have a nice interface for creating backmaps for a file on the file system.!!
 	bundleDIR = create_bundle(structID)

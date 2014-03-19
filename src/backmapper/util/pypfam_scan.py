@@ -194,6 +194,9 @@ class pfam_scan(object):
 		return self.error
 	
 	def get_results(self):
+		"""
+		Parse the results of "hmmscan" into self.queryResults
+		"""
 		if self.returncode != 0:
 			raise Exception( "You can only get results if the scan succeeded!")
 		
@@ -214,20 +217,35 @@ class pfam_scan(object):
 		#test our assumption that HMMER only gives one fragment per hit
 	
 	def filter_clan_overlap(self):
-		#TODO: Implement this
+		"""
+		Remove overlapping hits that are in the same clan.
+		"""
 		self.queryResults = map(lambda x:_single_filter_clan_overlap(x,self.pfamDB_dat), self.queryResults)
 	
 	
 def _single_filter_clan_overlap(single_query_result, pfam_dat_object):
+	"""
+	Removes overlapping hits _within_ clans.
+	
+	@param single_query_result: A query result to filter.
+	@type single_query_result: Bio.SearchIO.QueryResult
+	
+	@param pfam_dat_object: A representation of the "Pfam-A.hmm.dat" file, used to separate clan overlap.
+	@type pfam_dat_object:
+	
+	@return: The original query with overlapping HSPS from the same clan removed.
+	@rtype: Bio.SearchIO.QueryResult
+	"""
 	sorted_hsps = single_query_result.hsps
 	sorted_hsps.sort(key=lambda x:x.evalue)
 	
 	accepted_hsps = list()
 	
-	clan_hsps = collections.defaultdict(list)
+	clan_hsps = collections.defaultdict(list) #Clan -> list. we have already sorted all HSPS, so these sub-lists are also sorted.
 	
 	#accept any hits that are not members of a clan
 	#sort all clan members according to clan
+	#BEGIN SORT
 	for one_hsp in sorted_hsps:
 		clan = None
 		datEntry = pfam_dat_object.ids.get(one_hsp.hit_id,None)
@@ -238,10 +256,13 @@ def _single_filter_clan_overlap(single_query_result, pfam_dat_object):
 			accepted_hsps.append(one_hsp)
 		else:
 			clan_hsps[clan].append(one_hsp)
+	#END SORT
 	
+	#anonymous inner function to test overlap
 	def test_query_overlap(left,right):
 		return not (left.query_end <= right.query_start or left.query_start >= right.query_end)
 	
+	#For each clan, accept non-overlapping hits greedily by evalue.
 	for one_clan in clan_hsps.itervalues():
 		this_clan_accepted = list()
 		
@@ -251,5 +272,6 @@ def _single_filter_clan_overlap(single_query_result, pfam_dat_object):
 
 		accepted_hsps.extend(this_clan_accepted)
 	
+	#filter out HSPs that are not in the accepted set.
 	return single_query_result.hsp_filter(lambda x:x in accepted_hsps)
 
