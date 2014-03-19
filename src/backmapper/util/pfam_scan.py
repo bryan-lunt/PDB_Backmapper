@@ -11,14 +11,27 @@ import json
 
 class pfam_scan(object):
 	'''
-	This object wraps an invocation of the pfam_scan.pl utility.
+	This object wraps an invocation of the pfam_scan.pl utility using the "subprocess" library.
+	
+	It should be replaced with Bio.SearchIO.HmmerIO . Its advantage is that by using the actual PFAM code, we get exactly their results...
+	
 	'''
 
-	def __init__(self,pfamDBfile,fastafile,pfamScanPath="pfam_scan.pl"):
+	def __init__(self,pfamDB_dir,fastafile,pfamScanPath="pfam_scan.pl"):
 		'''
-		Constructor
+		Constructor.
+		
+		@param pfamDB_dir: The directory containing the files "Pfam-A.hmm*" and "Pfam-A.hmm.dat" for pfam_scan.pl to use.
+		@type pfamDB_dir: str
+		
+		@param fastafile: The FASTA format file containing unaligned sequences to scan with pfam_scan.pl
+		@type fastafile: str
+		
+		@param pfamScanPath: The path (or partial path, since PATH resolution is used) to the PFMA scan utility, usually "pfam_scan.pl"
+		@type pfamScanPath: str
+		
 		'''
-		self.pfamDBfile = pfamDBfile
+		self.pfamDBfile = pfamDB_dir
 		self.fastafile = fastafile
 		self.pfamScanPath = pfamScanPath
 		self.hmmproc = None
@@ -29,7 +42,17 @@ class pfam_scan(object):
 		self.error = None
 
 	def start(self):
-		self.hmmproc = sp.Popen([self.pfamScanPath,"-dir",self.pfamDBfile,"-fasta",self.fastafile,"-json","pretty"],stdout=sp.PIPE,stderr=sp.PIPE)
+		"""
+		Start a background process for scanning.
+		
+		"""
+		cmdline = [self.pfamScanPath] #The program
+		cmdline += ["-dir",self.pfamDBfile] #Where Pfam-A.hmm is stored
+		cmdline += ["-fasta",self.fastafile] #which Fasta file to invoke on
+		cmdline += ["-json","pretty"] #We want pretty-printed JSON format output.
+		
+		#Create the invocation, we want to be able to read STDOUT and STDERR back in.
+		self.hmmproc = sp.Popen(cmdline,stdout=sp.PIPE,stderr=sp.PIPE)
 
 	def wait(self):
 		self.output,self.error = self.hmmproc.communicate()
