@@ -10,6 +10,7 @@ import Bio.SearchIO.HmmerIO as HIO
 import collections
 from re import split as _re_split
 
+from itertools import count
 import os
 import tempfile
 import subprocess as sp
@@ -108,6 +109,15 @@ class pfam_datfile(object):
 			
 
 class pfam_scan(object):
+	"""
+	To use this class:
+	instantitate it.
+	call start()
+	call wait()
+	call get_results()
+	call filter_clan_overlap() if you want.
+	get the results from pfam_scan.queryResults
+	"""
 	
 	
 	def __init__(self, fastafile, pfamDB_file, pfamDB_dat_file=None, save_results=None, hmmscan_path="hmmscan"):
@@ -197,11 +207,49 @@ class pfam_scan(object):
 		
 		#filter the textHits so they will match the domain table output, (which does not give any output for sequences with no hit.)
 		filtered_textHits = filter(lambda x: len(x.hits) > 0, textHits)
-		
 		_HMMIO_joiner(domTblHits, filtered_textHits)
 		
+		#return the full textHits, which may have some queries with no Hits
 		self.queryResults = textHits
 		#test our assumption that HMMER only gives one fragment per hit
 	
 	def filter_clan_overlap(self):
 		#TODO: Implement this
+		self.queryResults = map(lambda x:_single_filter_clan_overlap(x,self.pfamDB_dat), self.queryResults)
+	
+	
+def _single_filter_clan_overlap(single_query_result, pfam_dat_object):
+	sorted_hsps = single_query_result.hsps
+	sorted_hsps.sort(key=lambda x:x.evalue)
+	
+	accepted_hsps = list()
+	
+	clan_hsps = collections.defaultdict(list)
+	
+	#accept any hits that are not members of a clan
+	#sort all clan members according to clan
+	for one_hsp in sorted_hsps:
+		clan = None
+		datEntry = pfam_dat_object.ids.get(one_hsp.hit_id,None)
+		if datEntry is not None:
+			clan = datEntry.get('CL',None)
+		
+		if clan is None:
+			accepted_hsps.append(one_hsp)
+		else:
+			clan_hsps[clan].append(one_hsp)
+	
+	def test_query_overlap(left,right):
+		return not (left.query_end <= right.query_start or left.query_start >= right.query_end)
+	
+	for one_clan in clan_hsps.itervalues():
+		this_clan_accepted = list()
+		
+		for clan_member in one_clan:
+			if all(map(lambda x:not test_query_overlap(clan_member, x), this_clan_accepted)):
+				this_clan_accepted.append(clan_member)
+
+		accepted_hsps.extend(this_clan_accepted)
+	
+	return single_query_result.hsp_filter(lambda x:x in accepted_hsps)
+
