@@ -116,7 +116,7 @@ class pfam_scan(object):
 	call wait()
 	call get_results()
 	call filter_clan_overlap() if you want.
-	get the results from pfam_scan.queryResults
+	get the results from pfam_scan.query_results
 	"""
 	
 	
@@ -160,7 +160,7 @@ class pfam_scan(object):
 		self.output = None
 		self.error = None
 		
-		self.queryResults = list()
+		self.query_results = list()
 	
 	def start(self):
 		"""
@@ -195,7 +195,7 @@ class pfam_scan(object):
 	
 	def get_results(self):
 		"""
-		Parse the results of "hmmscan" into self.queryResults
+		Parse the results of "hmmscan" into self.query_results
 		"""
 		if self.returncode != 0:
 			raise Exception( "You can only get results if the scan succeeded!")
@@ -213,14 +213,14 @@ class pfam_scan(object):
 		_HMMIO_joiner(domTblHits, filtered_textHits)
 		
 		#return the full textHits, which may have some queries with no Hits
-		self.queryResults = textHits
+		self.query_results = textHits
 		#test our assumption that HMMER only gives one fragment per hit
 	
 	def filter_clan_overlap(self):
 		"""
 		Remove overlapping hits that are in the same clan.
 		"""
-		self.queryResults = map(lambda x:_single_filter_clan_overlap(x,self.pfamDB_dat), self.queryResults)
+		self.query_results = map(lambda x:_single_filter_clan_overlap(x,self.pfamDB_dat), self.query_results)
 	
 	
 def _single_filter_clan_overlap(single_query_result, pfam_dat_object):

@@ -5,6 +5,7 @@
 import sys, os
 from optparse import OptionParser
 from itertools import count
+from collections import defaultdict
 
 import Bio.SeqIO as SeqIO
 import Bio.PDB as PDB
@@ -13,7 +14,7 @@ import util.struct as structU
 import util.struct.fetcher as structF
 import util.struct.contacts as structC
 
-from util.pfam_scan import pfam_scan
+from util.pypfam_scan import pfam_scan
 
 from . import *
 from Backmap import *
@@ -75,15 +76,6 @@ def make_backmap(HMMSeqRes,chain_res_list,name=None):
 
 def pdb_seqres_seqname_toChain(seqname):
 	return seqname.split("|")[0].split(":")[1]
-
-def hmmer_hits_by_chain(pfam_scan_by_sequence):
-	"""
-	Give it a pfam_scan.bySeq dictionary, and it transforms the keys to chainIDs
-	"""
-	HMMHitMap = dict()
-	for originalSequenceName, someHits in pfam_scan_by_sequence.iteritems():
-		HMMHitMap[pdb_seqres_seqname_toChain(originalSequenceName)] = someHits
-	return HMMHitMap
 
 def is_no_aa_chain(chain):
 	"""
@@ -167,6 +159,7 @@ def main():
 	#put args into sensible names
 	structID = args[1].lower()
 	pfamDBfile = args[0]
+	pfamDBfile = os.path.join(pfamDBfile, "Pfam-A.hmm")
 
 	#placeholder, later the user will be given the option to specify a bundledir
 	
@@ -182,7 +175,7 @@ def main():
 			sys.exit(0)
 
 	print "Starting pfam_scan.pl"
-	pfam_scan_proc = pfam_scan(pfamDBfile,fastafile)
+	pfam_scan_proc = pfam_scan(fastafile, pfamDBfile, save_results=os.path.join(bundleDIR, "hmmscan"))
 	pfam_scan_proc.start()
 
 	#parse the structure file, and create some "mappings"	
@@ -204,19 +197,27 @@ def main():
 	else:
 		print "HMMSearch Success"
 	
-	pfam_scan_proc.parse_output()
+	pfam_scan_proc.get_results()
+	pfam_scan_proc.filter_clan_overlap()
 	
-	#write pfam_scan output to file.
-	pfam_scan_output_file = open(os.path.join(bundleDIR,'pfam_scan.out'),'w')
-	pfam_scan_output_file.write(pfam_scan_proc.output)
-	pfam_scan_output_file.close()
 	
-	HMMHitMap = hmmer_hits_by_chain(pfam_scan_proc.bySeq)
+	import pdb
+	pdb.set_trace()
+
 	
 	#finally create the actual backmaps. UGH!
-	backmaps = dict()
-	for chainID, one_chain_hits in HMMHitMap.iteritems():
-		backmaps[chainID] = [make_backmap(hmmSeqRec,seqResToResidue[chainID],name=hmmName) for hmmName,hmmSeqRec in one_chain_hits]
+	backmaps = defaultdict(list)
+	for one_query_result in pfam_scan_proc.query_results:
+		chainID = pdb_seqres_seqname_toChain(one_query_result.id)
+		for one_hit in one_query_result.hits:
+			hit_length = one_hit.seq_len
+			for one_hsp in one_hit.hsps:
+				start, end = one_hsp.hit_range
+				oneSeqRecord = "-"*start + one_hsp.query + "-"*(hit_length-end)
+				oneSeqRecord.annotations['start'] = one_hsp.query_start+1
+				
+				backmaps[chainID].append(make_backmap(oneSeqRecord, seqResToResidue[chainID], name=one_hit.id))
+	
 
 
 	#output backmaps
@@ -243,7 +244,7 @@ def main():
 	saver = PDB.PDBIO()
 	saver.set_structure(structure)
 	#Save renumbered chains
-	for chainID,seqResMapping in seqResToResidue.iteritems():
+	for chainID, seqResMapping in seqResToResidue.iteritems():
 		chain_aligned_seqres = ''.join([i[0] for i in seqResMapping])
 		aligned_residues     = [i[1] for i in seqResMapping]
 		
