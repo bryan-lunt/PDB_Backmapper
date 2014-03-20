@@ -201,10 +201,6 @@ def main():
 	pfam_scan_proc.filter_clan_overlap()
 	
 	
-	import pdb
-	pdb.set_trace()
-
-	
 	#finally create the actual backmaps. UGH!
 	backmaps = defaultdict(list)
 	for one_query_result in pfam_scan_proc.query_results:
@@ -214,7 +210,7 @@ def main():
 			for one_hsp in one_hit.hsps:
 				start, end = one_hsp.hit_range
 				oneSeqRecord = "-"*start + one_hsp.query + "-"*(hit_length-end)
-				oneSeqRecord.annotations['start'] = one_hsp.query_start+1
+				oneSeqRecord.annotations['start'] = one_hsp.query_start+1 #TODO : This is hackish.
 				
 				backmaps[chainID].append(make_backmap(oneSeqRecord, seqResToResidue[chainID], name=one_hit.id))
 	
