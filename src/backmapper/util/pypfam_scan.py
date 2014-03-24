@@ -21,13 +21,16 @@ def _HMMIO_joiner(domain_table_results, text_results):
 	
 	 
 	"""
-	assert len(domain_table_results) == len(text_results), "Bryan Lunt is an idiot who makes too many assumptions. Please complain to him and include your input."
-	for domQR, textQR in zip(domain_table_results, text_results):
+	#filter the textHits so they will match the domain table output, (which does not give any output for sequences with no hit.)
+	filtered_textHits = filter(lambda x: len(x.hits) > 0, text_results)
+	
+	assert len(domain_table_results) == len(filtered_textHits), "Bryan Lunt is an idiot who makes too many assumptions. Please complain to him and include your input."
+	for domQR, textQR in zip(domain_table_results, filtered_textHits):
 		assert len(domQR.hits) == len(textQR.hits), "Bryan Lunt is an idiot who makes too many assumptions. Please complain to him and include your input."
 		for domHit, textHit in zip(domQR.hits, textQR.hits):
 			textHit.seq_len = domHit.seq_len
 
-	return text_results
+	return filtered_textHits
 
 class pfam_datfile(object):
 	"""
@@ -97,8 +100,6 @@ class pfam_datfile(object):
 						raise Exception("Problem parsing, expected GF entry.")
 					attribute_name, attribute_value = _re_split("\s*", line[5:], 1)
 					
-					#import pdb
-					#pdb.set_trace()
 					
 					converted_value = pfam_datfile.converters.get(attribute_name, lambda x:x).__call__(attribute_value)
 					current[attribute_name] = converted_value
@@ -208,13 +209,12 @@ class pfam_scan(object):
 		#filter useless hits from textresults (below reporting threshold per-domain)
 		textHits = [i.hit_filter(lambda x:len(x.hsps) > 0) for i in textHits]
 		
-		#filter the textHits so they will match the domain table output, (which does not give any output for sequences with no hit.)
-		filtered_textHits = filter(lambda x: len(x.hits) > 0, textHits)
-		_HMMIO_joiner(domTblHits, filtered_textHits)
+		#Copies information unavailable in the HMMer text format. Specifically, the length of the HMM.
+		_HMMIO_joiner(domTblHits, textHits)
 		
 		#return the full textHits, which may have some queries with no Hits
 		self.query_results = textHits
-		#test our assumption that HMMER only gives one fragment per hit
+		#TODO: test our assumption that HMMER only gives one fragment per hit?
 	
 	def filter_clan_overlap(self):
 		"""
