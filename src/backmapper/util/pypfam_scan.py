@@ -121,7 +121,7 @@ class pfam_scan(object):
 	"""
 	
 	
-	def __init__(self, fastafile, pfamDB_file, pfamDB_dat_file=None, save_results=None, hmmscan_path="hmmscan"):
+	def __init__(self, fastafile, pfamDB_file, pfamDB_dat_file=None, save_results=None, hmmscan_path="hmmscan",hmmscan_other_args=["--cut_ga"]):
 		'''
 		Constructor.
 		
@@ -140,6 +140,9 @@ class pfam_scan(object):
 		@param hmmscan_path: The path (or partial path, since PATH resolution is used) to the "hmmscan" utility, usually "hmmscan"
 		@type hmmscan_path: str
 		
+		@param hmmscan_other_ars: A list of other arguments (as strings) to provide to hmmscan.
+		@type hmmsacn_other_args: list
+		
 		'''
 		self.fastafile = fastafile
 		self.pfamDB_file = pfamDB_file
@@ -148,6 +151,7 @@ class pfam_scan(object):
 		self.pfamDB_dat_file = pfamDB_dat_file
 		self.pfamDB_dat = None #We'll parse this later
 		self.pfamScanPath = hmmscan_path
+		self.pfamScanArgs = hmmscan_other_args
 		
 		
 		if save_results is None:
@@ -170,7 +174,7 @@ class pfam_scan(object):
 		"""
 		cmdline = [self.pfamScanPath] #The program
 		cmdline += ["-o", self.save_results + ".out", "--domtblout", self.save_results + ".domtblout"]
-		cmdline += ['--cut_ga'] #See PfamScan/Bio/Pfam/Scan/PfamScan.pm 
+		cmdline += self.pfamScanArgs#See PfamScan/Bio/Pfam/Scan/PfamScan.pm 
 		cmdline += [self.pfamDB_file] #Where Pfam-A.hmm is stored
 		cmdline += [self.fastafile] #which Fasta file to invoke on
 		
@@ -183,11 +187,22 @@ class pfam_scan(object):
 			self.pfamDB_dat.load(DATFILE)
 	
 	def wait(self):
+		"""
+		Block and wait for the subprocess to terminate.
+		
+		@return: The returncode of the subprocess.
+		@rtype: int
+		"""
 		self.output,self.error = self.hmmproc.communicate()
 		self.returncode = self.hmmproc.returncode
 		return self.returncode
 	
 	def poll(self):
+		"""
+		Ask if the subprocess has finished yet, if so, get the returncode. (Does not block)
+		
+		@return: The returncode or None
+		"""
 		self.returncode = self.hmmproc.poll()
 		return self.returncode
 	
