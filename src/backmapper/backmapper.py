@@ -174,7 +174,7 @@ def main():
 		if options.download:
 			sys.exit(0)
 
-	print "Starting pfam_scan.pl"
+	print "Starting pypfam_scan.py"
 	pfam_scan_proc = pfam_scan(fastafile, pfamDBfile, save_results=os.path.join(bundleDIR, "hmmscan"))
 	pfam_scan_proc.start()
 

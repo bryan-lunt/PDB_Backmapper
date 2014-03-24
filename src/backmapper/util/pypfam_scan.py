@@ -19,6 +19,14 @@ def _HMMIO_joiner(domain_table_results, text_results):
 	"""
 	Function to update into text_results information that is only available in domain_table_results. (Specifically, the length of the HMM.)
 	
+	@param domain_table_results: The results of parsing the hmmscan domain table.
+	@type: list
+	
+	@param text_results: The results of parsing the hmmscan text output.
+	@type: list
+	
+	@return: A list of updated hits.
+	@rtype: list
 	 
 	"""
 	#filter the textHits so they will match the domain table output, (which does not give any output for sequences with no hit.)
